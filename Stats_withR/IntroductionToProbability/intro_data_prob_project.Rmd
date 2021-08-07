@@ -1,0 +1,700 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+The Behavioral Risk Factor Surveillance System (BRFSS) is a collaborative project between all of the states in the United States (US) and participating US territories and the Centers for Disease Control and Prevention (CDC). BRFSS is an ongoing surveillance system designed to measure behavioral risk factors for the non-institutionalized adult population (18 years of age and older) residing in the US.
+
+The BRFSS objective is to collect uniform, state-specific data on preventive health practices and risk behaviors that are linked to chronic diseases, injuries, and preventable infectious diseases that affect the adult population. 
+
+The data was randomly collected by surveying adult population, aged 18 years or older, with two ways:
+
+1. Landline telephone: randomly selecting an adult in a household
+1. Cellular telephone: interviewing and adult residing in a private residence or college household insuring the independence of the data from those surveyed on a landline telephone to exclude genetic or environmental factors.
+
+
+There are several drawbacks of data collection:
+
+* Independence: there is a chance that samples can come form two related adults depending on the size of the state population 
+* Non-resident adult can be interviewed.
+* Convenience sampling bias: earlier surveys included the individuals easily reachable (who could afford the cellular phones or lived in cities) vs. those who lived in a countryside without a landline telephone or cell towers
+* Non-response sampling bias: e.g., include only the individuals without a job as a working adult will be reluctant to answer questions during the working hours 
+
+
+
+* * *
+
+## Part 2: Research questions
+
+### **Research question 1:**
+
+General public health distribution across different states in 2013.
+
+Before proceeding to downstream analysis, first I will explore the distribution of general public health that can be further used in comparison and the rational of the health status and the factors determining individual's health status in US states.
+
+> E.g. State A has a higher frequency of individuals with an "Excellent" health status, where State B has the lowest frequency of individuals with "Excellent" health status. The question that follows this distribution would be the cause or the factors of this difference (e.g. medical cost, health cover, income, diet, and etc)  
+
+Following the question 1, the next step will be exploring the relationship between the general health status and the following determinants of health `Good or Better` and `Fair and Poor` categories:
+
+1. Social Factors (e.g. Education, job)
+1. Health Services (e.g. insurance coverage)
+1. Individual Behavior (e.g. diet, physical activity)
+1. Biology, Genetics (e.g. Age, inherited diseases)
+
+
+### **Research question 2:**
+
+In this research question 2, I will focus on the External (Social and Health Services) factors that might have the relationship with the Health Status. 
+
+1. Social Factors (e.g. Education, job)
+1. Health Services (e.g. insurance coverage)
+
+The main question is what makes people feel good/poor about the health status: the state's support (medical care, employment) or individuals' habits (diet, exercising).
+
+
+For bias correction, the pregnant women will be eliminated from further study as this variable can be confounding and can be biased toward Internal Factors.
+
+For simplicity the variables in each category of Health determinants will binary coded and summed to characterize the level of Health Determinants.
+
+> The answers with the negative impact on health status will be coded as `1` and the answers with the positive impact on helath status as `0`. E.g. `Smoking` will be categorized as `Individual Behavior` and `yes` as `1`, `no` as `0`.
+
+*The hypothesis of this research question:* The higher number of factors having the impact on health, would lead to `Fair or Poor` health status; and the lower the number factors having the impact on health, would lead to `Good or Better` health status. 
+
+The purpose of this research question is to explore the external determinants of health, such as `Social factors` and `Health Services factors`.
+
+The following variables were selected for `Social factors` as Determinants of Health:
+
+* `X_educag`: Computed Level Of Education Completed Categories
+* `employ1`: Employment Status
+* `renthom1`: Own Or Rent Home
+* `X_incomg`: Computed Income Categories(For illustrative purpose, I would consider the average income of $50,000 across US, which would be the threshold)
+
+
+The following variables were selected for `Health Services` as Determinants of Health:
+
+* `hlthpln1`: Have Any Health Care Coverage
+* `medcost`: Could Not See Dr. Because Of Cost
+* `bpmeds`: Currently Taking Blood Pressure Medication if `bphigh4` is 'yes' (Ever Told Blood Pressure High)
+* `flushot6`: Adult Flu Shot/Spray Past 12 Mos
+* `pneuvac3`: Pneumonia Shot Ever
+
+### **Research question 3:**
+
+Following the question 2, the next step will be exploring the relationship between the general health status and the internal determinants of health `Good or Better` and `Fair and Poor` categories:
+
+1. Individual Behavior (e.g. diet, physical activity)
+1. Biology, Genetics (e.g. Age, inherited diseases)
+
+The purpose of this research question is to explore the internal determinants of health, such as `Individual Behavior` and `Biology, Genetics`.
+
+The following variables were selected for `Individual Behaviour` as Determinants of Health:
+
+* `X_bmi5cat`: Computed Body Mass Index Categories
+* `X_smoker3`: Computed Smoking Status
+* `drnkany5`: Drink Any Alcoholic Beverages In Past 30 Days
+* `X_totinda`: Leisure Time Physical Activity Calculated Variable
+* `X_frtlt1`: Consume Fruit 1 Or More Times Per Day
+* `X_veglt1`: Consume Vegetables 1 Or More Times Per Day
+
+The following variables were selected for `Biology, Genetics` as Determinants of Health:
+
+* `X_age65yr`: Reported Age In Two Age Groups Calculated Variable
+* `cvdinfr4`: Ever Diagnosed With Heart Attack
+* `cvdcrhd4`: Ever Diagnosed With Angina Or Coronary Heart Disease
+* `cvdstrk3`: Ever Diagnosed With A Stroke
+* `X_asthms1`: Computed Asthma Status
+* `chcscncr`: (Ever Told) You Had Skin Cancer?
+* `chcocncr`: (Ever Told) You Had Any Other Types Of Cancer?
+* `chccopd1`: (Ever Told) You Have (Copd) Chronic Obstructive Pulmonary Disease, Emphysema
+* `havarth3`: Told Have Arthritis
+* `addepev2`: Ever Told You Had A Depressive Disorder
+* `chckidny`: (Ever Told) You Have Kidney Disease?
+* `diabete3`: (Ever Told) You Have Diabetes
+* `hivtst6`: Ever Tested HIV
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+
+### **Research question 1:**
+
+The first step for Question 1 is to subset the data to the following columns `X_state` the current state address code, `stateres` the state of of residency, `X_rfhlth` computed variable for health status with two variables: **Good or Better Health** to **Fair or Poor**.
+
+And then I will look at the respondents residing in the same state as reported in `X_state`.
+
+```{r - question1a}
+# First subset data to the following columns to answer Question 1: X_state, statres, and genhlth  
+data1 <- dplyr::select(brfss2013, one_of(c("X_state", "stateres", "X_rfhlth")))
+# remove NA from the data
+data1 <- na.omit(data1)
+
+# subset the data to only the residents of the same state as reported in X_state
+data1.res <- filter(data1, stateres == "Yes")
+colnames(data1.res) <- c("State", "StateRes", "Health_Status")
+
+```
+
+This is a frequency barplot of general health status for each state.
+
+```{r fig1, out.width = '200%'}
+ggplot(data = data1.res, aes(x = State, fill = Health_Status)) + 
+  geom_bar(position = "fill") + 
+  theme(axis.text.y = element_text(size = 5)) +
+  xlab("State") + ylab("Frequency") + 
+  coord_flip()
+```
+
+
+The following states have the relatively highest frequency in `Fair or Poor` health status (blue bars):
+
+* Puerto Rico
+* Tennessee
+* Mississippi
+* Arkansas
+* Alabama 
+* Louisiana
+* Kentucky 
+
+
+The following states have the relatively highest frequency in `Good or Better` health status (pink bars):
+
+* Vermont
+* New Hampshire
+* Minnesota
+* District of Columbia
+* Connecticut
+* Colorado
+
+
+Let's create a frequency table to verify the conclusion based on the plot above
+
+```{r - question1b}
+# calculate the relative proportion
+df1 <- data1.res %>%
+  count(State, Health_Status) %>%
+  group_by(State) %>%
+  mutate(rel_prop = n / sum(n))
+
+
+# create a frequency table
+df1.freq <- data.frame(States = unique(df1$State),
+                       Good = filter(df1, Health_Status == 'Good or Better Health')[, 4],
+                       Bad = filter(df1, Health_Status == 'Fair or Poor Health')[, 4])
+
+colnames(df1.freq) <- c("States", "Good_or_Better", "Fair_or_Poor")
+
+arrange(df1.freq, desc(Fair_or_Poor))
+
+```
+
+The above frequency table has the same output of top 5 states with `Good or Better` health status as the barplot as well as for `Fair or Poor` health status. 
+
+
+**The Age distribution across US states**
+* `X_ageg5yr`: Reported Age In Five-Year Age Categories Calculated Variable
+
+
+### **Research question 2:**
+
+The purpose of this research question is to explore the external determinants of health, such as `Social factors` and `Health Services factors`.
+
+The following variables were selected for `Social factors` as Determinants of Health:
+
+* `X_educag`: Computed Level Of Education Completed Categories
+* `employ1`: Employment Status
+* `renthom1`: Own Or Rent Home
+* `X_incomg`: Computed Income Categories(For illustrative purpose, I would consider the average income of $50,000 across US, which would be the threshold)
+
+
+The following variables were selected for `Health Services` as Determinants of Health:
+
+* `hlthpln1`: Have Any Health Care Coverage
+* `medcost`: Could Not See Dr. Because Of Cost
+* `bpmeds`: Currently Taking Blood Pressure Medication if `bphigh4` is 'yes' (Ever Told Blood Pressure High)
+* `flushot6`: Adult Flu Shot/Spray Past 12 Mos
+* `pneuvac3`: Pneumonia Shot Ever
+
+
+**Social Determinants of Health**
+
+To determine factors impacting the Health Status as the Social Determinants, the following variables were selected.
+
+The binary code was assigned according to the Social status: `1` - negative impact on health; `0` - positive impact on Health
+
+* Employment: (`1`: Unable to work, Out of work for less than 1 year, A homemaker, Out of work for 1 year or more, A student)
+            (`0`: Retired, Employed for wages, Self-employed)
+* Education: (`0`: Graduated from college or technical school; `1`" the rest)
+* Income: (`0`: $50.000 or more; `1`: the rest)
+* Home: (`1`: rent, `0`: own)
+
+The total Sum of Factors is 4
+
+
+```{r - question2a}
+
+# remove pregnant
+pr <- which(brfss2013$pregnant == "Yes") # length 3054
+brfss2013.nopreg <- brfss2013[-pr, ]
+
+# the core variable set
+var.core <- c("X_state", "stateres", "X_rfhlth")
+
+# create a table for Social factor Health Determinant
+var1 <- c("X_educag", "employ1", "renthom1", "X_incomg")
+var1 <- c(var.core, var1)
+
+data2.social <- dplyr::select(brfss2013.nopreg, all_of(var1))
+
+# remove NAs
+data2.social <- na.omit(data2.social)
+
+# assign a binary variable to each variable in Social Factors:
+data2.social <- data2.social %>%
+  mutate(Employment = ifelse( (employ1 == "Unable to work") | 
+                          (employ1 == "A student") |
+                          (employ1 == "A homemaker") |
+                          (employ1 == "Out of work for less than 1 year") |
+                          (employ1 == "Out of work for 1 year or more")  , 1, 0)) %>%
+  mutate(Education = ifelse(X_educag == "Graduated from college or technical school", 0, 1)) %>%
+  mutate(Home = ifelse(renthom1 == "Own", 0, 1)) %>%
+  mutate(Income = ifelse(X_incomg == "$50,000 or more", 0, 1)) %>%
+  mutate(Sum_Factor = Employment + Education + Home + Income) %>%
+  arrange(desc(Sum_Factor))
+
+
+# calculate the relative proportion of health status and the average factors
+df2 <- data2.social %>%
+  count(X_state, X_rfhlth) %>%
+  group_by(X_state) %>%
+  mutate(hlth_prop = n / sum(n))
+
+df2$n <- NULL
+df2 <- df2 %>% tidyr::spread(X_rfhlth, hlth_prop)
+temp <- data2.social %>%
+  group_by(X_state) %>%
+  summarise(Soc_Factor = mean(Sum_Factor)) %>%
+  arrange(desc(Soc_Factor))
+
+df2 <- df2 %>%
+  left_join(temp, by = "X_state") %>%
+  arrange(desc(Soc_Factor))
+
+df2[ , c(1:3, 4)]
+
+
+```
+
+The `Soc_Factor` is the average of the Sum_Factors in each state:
+
+>E.g. 
+
+```{r - question2a.1}
+
+data2.social[c(1:5, 21005:21010), c(1,8:12)] 
+
+```
+
+
+The summary table above (arranged by descending order of `Social Factor`) shows the same top states (except for `Guam`) with the highest `Social Factor` as was seen in the table of the Health Status, where the top states were ordered and characterized by the highest frequency in `Fair or Poor` health status. 
+
+```{r fig2a, out.width = '100%'}
+# scatterplot of Good or Better Health
+ggplot(df2, aes(x = `Good or Better Health`, y = Soc_Factor)) + 
+  geom_point()+
+  geom_smooth(method=lm) + 
+  labs(title="The Proportion of Good or Better Health based on the Social Factor",
+       x="Good or Better Health Proportion Acroos US States", y = "The average of Social Factors across US States")
+```
+
+
+There is a moderate negative relationship between the Proportion of `Good or Better` Health status and the Social Factor.
+The higher the Social Factor, the more impact one would expect on Health. In this case, the states with the higher Social Factor (e.g. Puerto Rico = 2.23 out of 4), have a lower frequency `Good or Better` status.
+
+There is an outlier (`Guam`) which has high frequency of `Good or Better Health` respondents and high social factors affecting the health status.
+
+
+```{r fig2b, out.width = '200%'}
+# scatterplot of Fair or Poor Health
+ggplot(df2, aes(x = `Fair or Poor Health`, y = Soc_Factor)) + 
+  geom_point()+
+  geom_smooth(method=lm) + 
+  labs(title="The Proportion of Fair or Poor Health based on the Social Factor",
+       x="Fair or Poor Health Proportion Acroos US States", y = "The average of Social Factors across US States")
+```
+
+There is a positive relationship between `Fair or Poor` health and the social factor, which is expected based on `Good or Better Health` plot.
+
+In conclusion, there is a correlation between the health status and the social factor, although we cannot assume that the social factors are independent as e.g. an individual with a College degree have a better chance to get hired with higher income, therefore, leading to easier access to health coverage, healthy food, and etc.
+
+The next step would be to examine the correlation between different social factors, eliminating the dependent one, and also examining the factor putting the highest weight to the Health Status.
+
+
+**Health Services - Determinants of Health**
+
+The following variables were selected for `Health Services` as Determinants of Health:
+
+* `hlthpln1`: Have Any Health Care Coverage
+* `medcost`: Could Not See Dr. Because Of Cost
+* `bpmeds`: Currently Taking Blood Pressure Medication if `bphigh4` is 'yes' (Ever Told Blood Pressure High)
+* `flushot6`: Adult Flu Shot/Spray Past 12 Mos
+* `pneuvac3`: Pneumonia Shot Ever
+
+The binary code was assigned according to the Health Services status: `1` - negative impact on health; `0` - positive impact on Health
+
+* Health_coverage: (`1`: No; `0`: Yes)
+* MedCost: (`1`: Yes; `0`: No)
+* Flu_Shot: (`1`: No; `0`: Yes)
+* Pnem_Shot: (`1`: No; `0`: Yes)
+* Blood_Press: (`1`: if Blood pressure, and not taking blood pressure medication; `0`: Blood pressure is not high or Blood pressure is high and             currently taking medication)
+
+The total Sum of Factors is 5
+
+
+```{r - question2b}
+
+# create a table for Health Services factor
+var2 <- c("hlthpln1", "medcost", "bpmeds", "bphigh4", "flushot6", "pneuvac3")
+var2 <- c(var.core, var2)
+
+data2.health <- dplyr::select(brfss2013.nopreg, all_of(var2))
+
+# remove NAs
+data2.health <- na.omit(data2.health)
+
+# assign a binary variable to each variable in Health Services Factors:
+data2.health <- data2.health %>%
+  mutate(Health_coverage = ifelse( (hlthpln1 == "No") , 1, 0)) %>%
+  mutate(MedCost = ifelse(medcost == "Yes", 1, 0)) %>%
+  mutate(Flu_Shot = ifelse(flushot6 == "No", 1, 0)) %>%
+  mutate(Pnem_Shot = ifelse(pneuvac3 == "No", 1, 0)) %>%
+  mutate(Blood_Press = case_when(
+    bphigh4 == "Yes" & bpmeds == "Yes" ~ 0,
+    bphigh4 == "Yes" & bpmeds == "No" ~ 1,
+    bphigh4 == "No" & bpmeds == "No" ~ 0)) %>%
+  mutate(Sum_Factor = Health_coverage + MedCost + Flu_Shot + Pnem_Shot + Blood_Press) %>%
+  arrange(desc(Sum_Factor))
+
+
+
+temp <- data2.health %>%
+  group_by(X_state) %>%
+  summarise(Health_Factor = mean(Sum_Factor)) %>%
+  arrange(desc(Health_Factor))
+
+df2 <- df2 %>%
+  left_join(temp, by = "X_state") %>%
+  arrange(desc(Health_Factor))
+
+df2[ , c(1:3, 5)]
+
+
+```
+
+The `Health_Factor` is the average of the Sum_Factors in each state:
+
+>E.g. 
+
+```{r - question2b.1}
+
+data2.health[c(1:5, 21005:21010), c(1,10:15)] 
+
+```
+
+The summary table above (arranged by descending order of `Health Factor`) shows different top states with the highest `Health Factor` comparing the states with the highest frequency of `Fair or Poor` health status, which might be explaining the scatterplot by the weak relationship.
+
+```{r fig2c, out.width = '200%'}
+# scatterplot of Good or Better Health
+ggplot(df2, aes(x = `Good or Better Health`, y = Health_Factor)) + 
+  geom_point()+
+  geom_smooth(method=lm) + 
+  labs(title="The Proportion of Good or Better Health based on the Health Services Factor",
+       x="Good or Better Health Proportion Acroos US States", y = "The average of Health Services Factors across US States")
+```
+
+
+There is a weak negative relationship between the Proportion of `Good or Better` Health status and the Health Services Factor.
+In this case, the highest Health Services Factor was 1.86/5 with the data range of (0.91-1.86), which is not even close to the average score of 2.5. We cannot conclude that the higher the Health Services Factor, the more impact one would expect on Health Status.  
+
+The same outlier (`Guam`) with the similar pattern as in Social Factor: has high frequency of `Good or Better Health` respondents and high Health Services factors affecting the health status. 
+
+
+```{r fig2d, out.width = '200%'}
+# scatterplot of Fair or Poor Health
+ggplot(df2, aes(x = `Fair or Poor Health`, y = Health_Factor)) + 
+  geom_point()+
+  geom_smooth(method=lm) + 
+  labs(title="The Proportion of Fair or Poor Health based on the Health Services Factor",
+       x="Fair or Poor Health Proportion Acroos US States", y = "The average of Health Services Factors across US States")
+```
+
+There is a positive, weak relationship between `Fair or Poor` health status and the Health Services factor.
+
+In conclusion, there is a weak correlation between the health status and the Health Services factor. The weak relationship suggests that multiple Health Services factors might be insignificant or have very low impact on Health Status. It would be interesting to further examine just the relationship between the health care coverage (`Health_coverage`) and the health status (`Good or Better` and `Fair or Poor`). 
+
+
+
+### **Research question 3:**
+
+The purpose of this research question is to explore the internal determinants of health, such as `Individual Behavior` and `Biology, Genetics`.
+
+The following variables were selected for `Individual Behaviour` as Determinants of Health:
+
+* `X_bmi5cat`: Computed Body Mass Index Categories
+* `X_smoker3`: Computed Smoking Status
+* `drnkany5`: Drink Any Alcoholic Beverages In Past 30 Days
+* `X_totinda`: Leisure Time Physical Activity Calculated Variable
+* `X_frtlt1`: Consume Fruit 1 Or More Times Per Day
+* `X_veglt1`: Consume Vegetables 1 Or More Times Per Day
+
+The following variables were selected for `Biology, Genetics` as Determinants of Health:
+
+* `X_age65yr`: Reported Age In Two Age Groups Calculated Variable
+* `cvdinfr4`: Ever Diagnosed With Heart Attack
+* `cvdcrhd4`: Ever Diagnosed With Angina Or Coronary Heart Disease
+* `cvdstrk3`: Ever Diagnosed With A Stroke
+* `X_asthms1`: Computed Asthma Status
+* `chcscncr`: (Ever Told) You Had Skin Cancer?
+* `chcocncr`: (Ever Told) You Had Any Other Types Of Cancer?
+* `chccopd1`: (Ever Told) You Have (Copd) Chronic Obstructive Pulmonary Disease, Emphysema
+* `havarth3`: Told Have Arthritis
+* `addepev2`: Ever Told You Had A Depressive Disorder
+* `chckidny`: (Ever Told) You Have Kidney Disease?
+* `diabete3`: (Ever Told) You Have Diabetes
+* `hivtst6`: Ever Tested HIV
+
+
+**Individual Behavior - Determinants of Health**
+
+The binary code was assigned according to the `Individual Behavior` status: `1` - negative impact on health; `0` - positive impact on Health
+
+* BMI: (`1`: Underweight, Overweight, Obese; `0`: Normal)
+* Smoke: (`1`: Current smoker - now smokes every day, Current smoker - now smokes some days, Former smoker; `0`: Never smoked)
+* Alcohol: (`1`: Yes; `0`: No)
+* PhysAct: (`1`: No physical activity or exercise in last 30 days; `0`: Had physical activity or exercise)
+* Fruit: (`1`: Consumed fruit less than one time per day, `0`: Consumed fruit one or more times per day)
+* Veggie: (`1`: Consumed vegetables less than one time per day; `0`: Consumed vegetables one or more times per day)
+
+The total Sum of Factors is 6
+
+
+```{r - question3a}
+
+# create a table for Health Services factor
+var3 <- c("X_bmi5cat", "X_smoker3", "drnkany5", "X_totinda", "X_frtlt1", "X_veglt1")
+var3 <- c(var.core, var3)
+
+data3.behavior <- dplyr::select(brfss2013.nopreg, all_of(var3))
+
+# remove NAs
+data3.behavior <- na.omit(data3.behavior)
+
+# assign a binary variable to each variable in Health Services Factors:
+data3.behavior <- data3.behavior %>%
+  mutate(BMI = ifelse( (X_bmi5cat == "Normal weight") , 0, 1)) %>%
+  mutate(Smoke = ifelse(X_smoker3 == "Never smoked", 0, 1)) %>%
+  mutate(Alcohol = ifelse(drnkany5 == "Yes", 1, 0)) %>%
+  mutate(PhysAct = ifelse(X_totinda == "No physical activity or exercise in last 30 days", 1, 0)) %>%
+  mutate(Fruit = ifelse(X_frtlt1 == "Consumed fruit less than one time per day", 1, 0)) %>%
+  mutate(Veggie = ifelse(X_veglt1 == "Consumed vegetables less than one time per day", 1, 0)) %>%
+  mutate(Sum_Factor = BMI + Smoke + Alcohol + PhysAct + Fruit + Veggie) %>%
+  arrange(desc(Sum_Factor))
+
+
+
+temp <- data3.behavior %>%
+  group_by(X_state) %>%
+  summarise(Behavior_Factor = mean(Sum_Factor)) %>%
+  arrange(desc(Behavior_Factor))
+
+df2 <- df2 %>%
+  left_join(temp, by = "X_state") %>%
+  arrange(desc(Behavior_Factor))
+
+df2[ , c(1:3, 6)]
+
+
+```
+
+The `Behavior_Factor` is the average of the Sum_Factors in each state:
+
+>E.g. 
+
+```{r - question3a.1}
+
+data3.behavior[c(1:5, 21005:21010), c(1,10:16)] 
+
+```
+
+The summary table above (arranged by descending order of `Indivdual Behavior Factor`) shows the same top states with the highest `Individual Behavior Factor` comparing to the top states with the highest frequency in `Fair or Poor` health status. Based on the similar states trend in both `Individual Behavior Factor` and `Fair or Poor` health status, one would would expect a relatively strong relationship between two variables. This is indeed observed in the scatterplot below.
+
+```{r fig3a, out.width = '200%'}
+# scatterplot of Good or Better Health
+ggplot(df2, aes(x = `Good or Better Health`, y = Behavior_Factor)) + 
+  geom_point()+
+  geom_smooth(method=lm) + 
+  labs(title="The Proportion of Good or Better Health based on the Individual Behavior Factor",
+       x="Good or Better Health Proportion Acroos US States", y = "The average of Individual Behavior Factors across US States")
+```
+
+
+There is a strong negative relationship between the Proportion of `Good or Better` Health status and the Individual Behavior Factor.
+The higher the Individual Behavior Factor, the more impact on Health Status one would expect. In this case, the states with the higher Individual Behavior Factor (e.g. Puerto Rico = 3.03 out of 6), would have a lower frequency `Good or Better` status. 
+
+
+```{r fig3b, out.width = '200%'}
+# scatterplot of Fair or Poor Health
+ggplot(df2, aes(x = `Fair or Poor Health`, y = Behavior_Factor)) + 
+  geom_point()+
+  geom_smooth(method=lm) + 
+  labs(title="The Proportion of Fair or Poor Health based on the Individual Behavior Factor",
+       x="Fair or Poor Health Proportion Acroos US States", y = "The average of Individual Behavior Factors across US States")
+```
+
+There is a strong positive relationship between `Fair or Poor` health status and the Individual Behavior factor, which is expected based on `Good or Better Health` plot.
+
+In conclusion, the similar relatively strong trend was observed in Social Factors plot. There might be a correlation between the Social and Individual Behavior Factors, as one would expect to have more access to healthy food with the higher income. Though such variables as `Smoking` and `Alcohol` might be either positively or negatively correlated with the Income and Employment, as a person with the high income might have more stress to keep the job, or a person with a low income or no job experience stress in providing himself/herself or family with food or medical care.
+
+The individual variable in both Social Factors and Individual Behavior are worth examining further.  
+
+
+
+**Biology/Genetics - Determinants of Health**
+
+The binary code was assigned according to the `Biology/Genetics` status: `1` - negative impact on health; `0` - positive impact on Health
+
+* Age65: (`1`: Age 65 or older, `0`: Age 18 to 64)
+* Heart_Attack: (`1`: Yes; `0`: No)
+* Heart_Dis: (`1`: Yes; `0`: No)
+* Stroke: (`1`: Yes; `0`: No)
+* Asthma: (`1`: Current, Former; `0`: Never)
+* Skin_Cancer: (`1`: Yes; `0`: No)
+* Cancer: (`1`: Yes; `0`: No)
+* Copd: (`1`: Yes; `0`: No)
+* Arthritis: (`1`: Yes; `0`: No)
+* Depress_Dis: (`1`: Yes; `0`: No)
+* Kidney_Dis: (`1`: Yes; `0`: No)
+* Diabetes: (`1`: Yes; `0`: other)
+* HIV: (`1`: Yes, ; `0`: No)
+
+
+The total Sum of Factors is 13
+
+
+```{r - question3b}
+
+# create a table for Health Services factor
+var4 <- c("cvdinfr4", "X_age65yr", "cvdcrhd4", "cvdstrk3", "X_asthms1", "chcscncr", "chcocncr",
+          "chccopd1", "havarth3", "addepev2", "chckidny", "diabete3", "hivtst6")
+var4 <- c(var.core, var4)
+
+data3.biology <- dplyr::select(brfss2013.nopreg, all_of(var4))
+
+# remove NAs
+data3.biology <- na.omit(data3.biology)
+
+# assign a binary variable to each variable in Health Services Factors:
+data3.biology <- data3.biology %>%
+  mutate(Age65 = ifelse( (X_age65yr == "Age 65 or older") , 1, 0)) %>%
+  mutate(Heart_Attack = ifelse( (cvdinfr4 == "Yes") , 1, 0)) %>%
+  mutate(Heart_Dis = ifelse( (cvdcrhd4 == "Yes") , 1, 0)) %>%
+  mutate(Stroke = ifelse( (cvdstrk3 == "Yes") , 1, 0)) %>%
+  mutate(Asthma = ifelse( (X_asthms1 == "Never") , 0, 1)) %>%
+  mutate(Skin_Cancer = ifelse( (chcscncr == "Yes") , 1, 0)) %>%
+  mutate(Cancer = ifelse( (chcocncr == "Yes") , 1, 0)) %>%
+  mutate(Copd = ifelse( (chccopd1 == "Yes") , 1, 0)) %>%
+  mutate(Arthritis = ifelse( (havarth3 == "Yes") , 1, 0)) %>%
+  mutate(Depress_Dis = ifelse( (addepev2 == "Yes") , 1, 0)) %>%
+  mutate(Kidney_Dis = ifelse( (chckidny == "Yes") , 1, 0)) %>%
+  mutate(Diabetes = ifelse( (diabete3 == "Yes") , 1, 0)) %>%
+  mutate(HIV = ifelse( (hivtst6 == "Yes") , 1, 0)) %>%
+  mutate(Sum_Factor = Age65 + Heart_Attack + Heart_Dis + Stroke + Asthma + Skin_Cancer +
+           Cancer + Copd + Arthritis + Depress_Dis + Kidney_Dis + Diabetes + HIV) %>%
+  arrange(desc(Sum_Factor))
+
+temp <- data3.biology %>%
+  group_by(X_state) %>%
+  summarise(Biology_Factor = mean(Sum_Factor)) %>%
+  arrange(desc(Biology_Factor))
+
+df2 <- df2 %>%
+  left_join(temp, by = "X_state") %>%
+  arrange(desc(Biology_Factor))
+
+df2[ , c(1:3, 7)]
+
+
+```
+
+The `Biology_Factor` is the average of the Sum_Factors in each state:
+
+>E.g. 
+
+```{r - question3b.1}
+
+data3.biology[c(1:5, 21005:21010), c(1,17:30)] 
+
+```
+
+The summary table above (arranged by descending order of `Biology/Genetics Factor`) shows slightly different top states with the highest `Health Factor` comparing the states with the highest frequency of `Fair or Poor` health status. One would expect to see a weak relationship between thsese variables.
+
+```{r fig3c, out.width = '200%'}
+# scatterplot of Good or Better Health
+ggplot(df2, aes(x = `Good or Better Health`, y = Biology_Factor)) + 
+  geom_point()+
+  geom_smooth(method=lm) + 
+  labs(title="The Proportion of Good or Better Health based on the Biology/Genetics Factor",
+       x="Good or Better Health Proportion Acroos US States", y = "The average of Biology/Genetics Factors across US States")
+```
+
+
+There is a weak negative relationship between the Proportion of `Good or Better` Health status and the `Biology/Genetics Factor`.
+Based on this relationship, we cannot conclude that collective factors of `Biology/Genetics` on the individuals' health perception. Single factors need to be further inspected to eliminate one with no relationship, and further strengthen the curve. 
+
+
+```{r fig3d, out.width = '200%'}
+# scatterplot of Fair or Poor Health
+ggplot(df2, aes(x = `Fair or Poor Health`, y = Biology_Factor)) + 
+  geom_point()+
+  geom_smooth(method=lm) + 
+  labs(title="The Proportion of Fair or Poor Health based on the Biology/Genetics Factor",
+       x="Fair or Poor Health Proportion Acroos US States", y = "The average of Biology/Genetics Factors across US States")
+```
+
+There same positive weak relationship is observed in `Fair or Poor` health status plot, as expected from the `Good or Better` plot.
+
+In summary, different approaches in characterizing individuals' health status were taken, such as:
+
+1. Social Factors (e.g. Education, job)
+1. Health Services (e.g. insurance coverage)
+1. Individual Behavior (e.g. diet, physical activity)
+1. Biology, Genetics (e.g. Age, inherited diseases)
+
+
+The strong relationship was observed in `Social Factors` and `Individual Behavior Factors`. These two factors might be dependent, and need further investigation to their inter-correlation. E.g. An individual with a better job and higher income would have more easiliy access to healthy food.  
+
